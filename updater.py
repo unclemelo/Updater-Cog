@@ -110,10 +110,17 @@ class Updater(commands.Cog):
         await self.notify_updates(update_results)
 
         git_response = update_results.get("git_pull", "No Git response available.")
-        embed.description += "\n\nNo updates found. Cancelling the reboot..." if "Already up to date." in git_response else "\n\n🔧 Updates applied successfully."
+        if "already up to date." in git_response.lower():
+            embed.description += "\n\nNo updates found. Cancelling the reboot..."
+        elif "error" in git_response.lower() or "conflict" in git_response.lower():
+            embed.description += "\n\n🚨 Error: Merge conflict or issue detected. Update failed!"
+        else:
+            embed.description += "\n\n🔧 Updates applied successfully."
         
         await interaction.followup.send(embed=embed, ephemeral=True)
-        if "Already up to date." in git_response:
+        if "already up to date." in git_response.lower():
+            pass
+        elif "error" in git_response.lower() or "conflict" in git_response.lower():
             pass
         else:
             print("[ SYSTEM ] Rebooting bot...")
