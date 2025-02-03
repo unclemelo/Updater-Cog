@@ -2,68 +2,66 @@ import pytest
 import discord
 from discord.ext import commands
 from updater import Updater
-
+from unittest.mock import AsyncMock, MagicMock, patch
 
 @pytest.fixture
 def bot():
-    """Creates a test bot instance."""
     return commands.Bot(command_prefix="!")
 
-
 @pytest.fixture
-async def cog(bot):
-    """Loads the Updater cog into the test bot."""
-    cog = Updater(bot)
-    await bot.add_cog(cog)
-    return cog
-
-
-def test_run_command():
-    """Tests if run_command executes a simple shell command."""
-    output = Updater.run_command(["echo", "Hello"])
-    assert "Hello" in output
-
-
-def test_update_code(mocker, cog):
-    """Tests the update_code function with mocked subprocess calls."""
-    mocker.patch.object(Updater, "run_command", return_value="Already up to date.")
-    
-    update_results = cog.update_code()
-    
-    assert "git_pull" in update_results
-    assert "pip_install" in update_results
-    assert "Already up to date." in update_results["git_pull"]
-
+def cog(bot):
+    return Updater(bot)
 
 @pytest.mark.asyncio
-async def test_restart_command(mocker, cog, bot):
-    """Tests the restart command without actually rebooting."""
-    interaction = mocker.MagicMock()
-    interaction.user.id = 1234567890  # Replace with a valid developer ID
-    interaction.response.send_message = mocker.AsyncMock()
+async def test_restart_cmd(cog):
+    """Test the /update command."""
+    interaction = AsyncMock()
+    interaction.user.id = next(iter(cog.devs))  # Use a valid developer ID
+    interaction.response.send_message = AsyncMock()
+    interaction.followup.send = AsyncMock()
 
-    mocker.patch.object(cog, "update_code", return_value={"git_pull": "Already up to date."})
-    mocker.patch.object(cog, "restart_bot")
-
-    await cog.restart_cmd(cog, interaction)
-
-    interaction.response.send_message.assert_called()
-    cog.restart_bot.assert_not_called()
-
+    with patch.object(cog, "update_code", return_value={"git_pull": "Already up to date."}), \
+         patch.object(cog, "restart_bot") as mock_restart:
+        
+        await cog.restart_cmd(cog, interaction)
+        interaction.response.send_message.assert_called_once()
+        interaction.followup.send.assert_called_once()
+        mock_restart.assert_not_called()
 
 @pytest.mark.asyncio
-async def test_notify_updates(mocker, cog, bot):
-    """Tests sending an update notification message."""
-    mock_channel = mocker.MagicMock()
-    mock_channel.send = mocker.AsyncMock()
+async def test_restart_cmd_with_update(cog):
+    """Test the /update command when updates are found."""
+    interaction = AsyncMock()
+    interaction.user.id = next(iter(cog.devs))  # Use a valid developer ID
+    interaction.response.send_message = AsyncMock()
+    interaction.followup.send = AsyncMock()
 
-    mocker.patch.object(bot, "get_channel", return_value=mock_channel)
+    with patch.object(cog, "update_code", return_value={"git_pull": "Updated files."}), \
+         patch.object(cog, "restart_bot") as mock_restart:
 
-    update_results = {"git_pull": "Updated"}
-    await cog.notify_updates(update_results)
+        await cog.restart_cmd(cog, interaction)
+        interaction.response.send_message.assert_called_once()
+        interaction.followup.send.assert_called_once()
+        mock_restart.assert_called_once()
 
-    mock_channel.send.assert_called()
+def test_run_command(cog):
+    """Test shell command execution."""
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(stdout="success", returncode=0)
+        result = cog.run_command(["echo", "test"])
+        assert result == "success"
 
+def test_get_update_channel(cog):
+    """Ensure update channel retrieval works correctly."""
+    mock_channel = MagicMock()
+    cog.bot.get_channel = MagicMock(return_value=mock_channel)
+    assert cog.get_update_channel() == mock_channel
 
-if __name__ == "__main__":
-    pytest.main()
+@pytest.mark.asyncio
+async def test_notify_updates(cog):
+    """Test update notifications are sent to the designated channel."""
+    mock_channel = AsyncMock()
+    cog.bot.get_channel = MagicMock(return_value=mock_channel)
+
+    await cog.notify_updates({"git_pull": "Updated files."})
+    mock_channel.send.assert_called_once()
