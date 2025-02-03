@@ -13,7 +13,7 @@ A Discord bot cog for updating and restarting the bot via slash commands. This c
 
 ### Prerequisites
 Ensure you have the following installed:
-- Python 3.8+
+- Python 3.10+
 - `discord.py` library
 - A bot set up with Discord API
 - Git installed
