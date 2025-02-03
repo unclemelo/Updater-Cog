@@ -7,8 +7,9 @@ from discord import app_commands
 from discord.ext import commands
 from functools import wraps
 
-# Developer IDs
-devs = {0} # replace with all the discord ids of bot Admins
+## Developer IDs ##
+devs = {0}       ## Replace with all the discord ids of bot Admins
+###################
 
 def is_dev():
     """Decorator to restrict commands to developers."""
@@ -25,26 +26,13 @@ def is_dev():
 
 class Updater(commands.Cog):
     """Cog for managing system-level commands like restarting and updating the bot."""
-    UPDATE_CHANNEL_ID = 0 # replace with your update channel ID
+    ## Replace with your update channel ID ##
+    UPDATE_CHANNEL_ID = 0                  ##
+    #########################################
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.start_time = datetime.utcnow()
-        self.bot.tree.on_error = self.on_tree_error
         self.devs = devs
-
-    async def on_tree_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
-        """Handles errors occurring in app commands."""
-        error_messages = {
-            app_commands.CommandOnCooldown: f"Command is on cooldown. Try again in {error.retry_after:.2f} seconds.",
-            app_commands.MissingPermissions: "You lack the necessary permissions for this command."
-        }
-        
-        message = error_messages.get(type(error), str(error))
-        await interaction.response.send_message(message, ephemeral=True)
-        if not isinstance(error, (app_commands.CommandOnCooldown, app_commands.MissingPermissions)):
-            print(f"[ ERROR ] {error}")
-            raise error
 
     def get_update_channel(self) -> discord.TextChannel:
         """Fetches the update channel."""
@@ -110,6 +98,7 @@ class Updater(commands.Cog):
         await self.notify_updates(update_results)
 
         git_response = update_results.get("git_pull", "No Git response available.")
+
         if "already up to date." in git_response.lower():
             embed.description += "\n\nNo updates found. Cancelling the reboot..."
         elif "error" in git_response.lower() or "conflict" in git_response.lower():
@@ -118,6 +107,7 @@ class Updater(commands.Cog):
             embed.description += "\n\n🔧 Updates applied successfully."
         
         await interaction.followup.send(embed=embed, ephemeral=True)
+        
         if "already up to date." in git_response.lower():
             pass
         elif "error" in git_response.lower() or "conflict" in git_response.lower():
